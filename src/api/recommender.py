@@ -45,11 +45,14 @@ def _build_item_response(
             explanation=explanation,
         )
     r = row.iloc[0]
+    title_val = r.get("title")
+    category_val = r.get("category")
+    brand_val = r.get("brand")
     return RecommendedItem(
         item_idx=item_idx,
-        title=str(r.get("title", f"Item #{item_idx}")),
-        category=str(r.get("category", "Unknown")),
-        brand=str(r.get("brand", "Unknown")),
+        title=str(title_val) if pd.notna(title_val) and str(title_val) != "nan" else f"Item #{item_idx}",
+        category=str(category_val) if pd.notna(category_val) and str(category_val) != "nan" else "Unknown",
+        brand=str(brand_val) if pd.notna(brand_val) and str(brand_val) != "nan" else "Unknown",
         price=float(r["price"]) if pd.notna(r.get("price")) else None,
         avg_rating=round(float(r["item_avg_rating"]), 2) if "item_avg_rating" in r and pd.notna(r.get("item_avg_rating")) else None,
         num_ratings=int(r["item_num_ratings"]) if "item_num_ratings" in r and pd.notna(r.get("item_num_ratings")) else None,
@@ -150,20 +153,22 @@ class InferenceOrchestrator:
         )
 
         scores = reg.lgbm_model.predict_proba(feat)
+        # feat rows are in same order as candidate_items; build index map
+        item_to_feat_idx = {iid: i for i, iid in enumerate(candidate_items)}
         ranked = sorted(zip(candidate_items, scores.tolist()), key=lambda x: x[1], reverse=True)[:top_k]
 
         items = []
         for item_idx, score in ranked:
-            # Build a simple feature-based explanation
-            row = feat[feat["item_idx"] == item_idx]
             try:
                 from src.explainability.shap_explainer import SHAPExplainer
                 explainer = SHAPExplainer(reg.lgbm_model)
+                feat_idx = item_to_feat_idx.get(item_idx, 0)
+                row = feat.iloc[[feat_idx]]
                 title_col = reg.item_features[reg.item_features["item_idx"] == item_idx]["title"].values
-                title = str(title_col[0]) if len(title_col) > 0 else f"Item #{item_idx}"
+                title = str(title_col[0]) if len(title_col) > 0 and pd.notna(title_col[0]) else f"Item #{item_idx}"
                 explanation = explainer.explain_as_text(row, title)
             except Exception:
-                explanation = f"Recommended based on your interaction patterns and item features."
+                explanation = "Recommended based on your interaction patterns and item features."
             items.append(_build_item_response(item_idx, score, explanation, reg.item_features))
         return items
 
@@ -226,11 +231,14 @@ class InferenceOrchestrator:
             if row.empty:
                 continue
             r = row.iloc[0]
+            t = r.get("title")
+            cat = r.get("category")
+            brd = r.get("brand")
             result.append({
                 "item_idx": int(iid),
-                "title": str(r.get("title", f"Item #{iid}")),
-                "category": str(r.get("category", "Unknown")),
-                "brand": str(r.get("brand", "Unknown")),
+                "title": str(t) if pd.notna(t) and str(t) != "nan" else f"Item #{iid}",
+                "category": str(cat) if pd.notna(cat) and str(cat) != "nan" else "Unknown",
+                "brand": str(brd) if pd.notna(brd) and str(brd) != "nan" else "Unknown",
                 "price": float(r["price"]) if pd.notna(r.get("price")) else None,
                 "avg_rating": round(float(r["item_avg_rating"]), 2) if "item_avg_rating" in r else None,
                 "num_ratings": int(r["item_num_ratings"]) if "item_num_ratings" in r else None,

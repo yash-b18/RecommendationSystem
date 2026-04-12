@@ -18,12 +18,10 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
-import torch
 
 from src.config import Config, MODELS_DIR, PROCESSED_DIR
 from src.explainability.language_explainer import LanguageExplainer
 from src.models.classical import LightGBMReranker
-from src.models.deep import TwoTowerModel, TwoTowerTrainer, build_item_feature_matrix
 from src.models.naive import GlobalPopularityRecommender
 from src.utils.logging import get_logger
 
@@ -44,7 +42,7 @@ class ModelRegistry:
     """
     naive_model: Optional[GlobalPopularityRecommender] = None
     lgbm_model: Optional[LightGBMReranker] = None
-    deep_trainer: Optional[TwoTowerTrainer] = None
+    deep_trainer: Optional[object] = None  # TwoTowerTrainer (lazy-imported)
     item_embeddings: Optional[np.ndarray] = None
     item_features: Optional[pd.DataFrame] = None
     user_features: Optional[pd.DataFrame] = None
@@ -133,16 +131,34 @@ class ModelRegistry:
         # --- Deep model ---
         if cfg.deep.model_path.exists() and cfg.deep.item_embeddings_path.exists():
             try:
+                # Lazy import: torch must be imported AFTER LightGBM pickle load on Apple Silicon
+                # to avoid a SIGSEGV caused by OpenMP/allocator conflicts.
+                # Set single-threaded mode IMMEDIATELY after import to prevent OpenMP deadlock
+                # when LightGBM's thread pool and PyTorch's OpenMP pool co-exist.
+                logger.info("Deep model: importing torch…")
+                import torch  # noqa: PLC0415
+                torch.set_num_threads(1)
+                torch.set_num_interop_threads(1)
+                logger.info("Deep model: torch imported (single-thread mode), importing deep module…")
+                from src.models.deep import TwoTowerModel, TwoTowerTrainer, build_item_feature_matrix  # noqa: PLC0415
+                logger.info("Deep model: module imported, detecting device…")
+
                 device = "cuda" if torch.cuda.is_available() else "cpu"
+                logger.info("Deep model: device=%s", device)
                 n_meta = 0
                 if registry.item_features is not None:
+                    logger.info("Deep model: building item feature matrix…")
                     item_feat_matrix = build_item_feature_matrix(
                         registry.item_features, ITEM_META_COLS
                     )
                     n_meta = item_feat_matrix.shape[1]
+                    logger.info("Deep model: n_meta=%d", n_meta)
                 else:
                     item_feat_matrix = None
 
+                logger.info("Deep model: loading state dict from %s…", cfg.deep.model_path)
+                state_dict = torch.load(cfg.deep.model_path, map_location=device, weights_only=True)
+                logger.info("Deep model: state dict loaded (%d keys), creating model…", len(state_dict))
                 model = TwoTowerModel(
                     n_users=registry.n_users,
                     n_items=registry.n_items,
@@ -152,12 +168,15 @@ class ModelRegistry:
                     dropout=0.0,          # no dropout at inference
                     n_meta_features=n_meta,
                 )
-                model.load_state_dict(
-                    torch.load(cfg.deep.model_path, map_location=device)
-                )
+                logger.info("Deep model: applying state dict…")
+                model.load_state_dict(state_dict)
+                del state_dict
+                logger.info("Deep model: parameters loaded.")
+                logger.info("Deep model: state dict loaded, creating trainer…")
                 registry.deep_trainer = TwoTowerTrainer(
                     model=model, device=device, model_path=cfg.deep.model_path
                 )
+                logger.info("Deep model: loading embeddings…")
                 registry.item_embeddings = np.load(cfg.deep.item_embeddings_path)
                 registry.deep_available = True
                 logger.info("Two-Tower model loaded. Item embeddings shape: %s",

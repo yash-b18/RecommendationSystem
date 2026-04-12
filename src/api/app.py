@@ -207,13 +207,14 @@ def personas() -> list[Persona]:
     train = state.registry.train_df
     pos_threshold = state.cfg.data.positive_rating_threshold
 
-    # Find users with >= 10 positive ratings
+    # Find users with >= 5 positive ratings (using raw rating column)
+    rating_col = "rating" if "rating" in train.columns else "label"
     pos_counts = (
-        train[train.get("label", train["rating"]) >= pos_threshold]
+        train[train[rating_col] >= pos_threshold]
         .groupby("user_idx")["item_idx"]
         .count()
     )
-    eligible = pos_counts[pos_counts >= 10].index.tolist()[:20]
+    eligible = pos_counts[pos_counts >= 5].index.tolist()[:20]
 
     persona_names = [
         ("Action Gamer", "Loves fast-paced action and shooter games"),
@@ -227,7 +228,7 @@ def personas() -> list[Persona]:
     for i, uid in enumerate(eligible[:5]):
         liked = train[
             (train["user_idx"] == uid) &
-            (train.get("label", train["rating"]) >= pos_threshold)
+            (train[rating_col] >= pos_threshold)
         ]["item_idx"].tolist()[:6]
 
         name, desc = persona_names[i % len(persona_names)]

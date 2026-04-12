@@ -65,7 +65,7 @@ def compute_user_features(
     pos_merged = merged[merged["is_positive"] == 1].copy()
     top_category = (
         pos_merged.groupby("user_idx")["category"]
-        .agg(lambda x: x.mode().iloc[0] if len(x) > 0 else "Unknown")
+        .agg(lambda x: x.mode().iat[0] if len(x) > 0 and len(x.mode()) > 0 else "Unknown")
         .rename("user_top_category")
     )
 

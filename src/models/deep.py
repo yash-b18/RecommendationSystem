@@ -300,7 +300,7 @@ class TwoTowerTrainer:
 
     def _load_checkpoint(self) -> None:
         if self.model_path.exists():
-            self.model.load_state_dict(torch.load(self.model_path, map_location=self.device))
+            self.model.load_state_dict(torch.load(self.model_path, map_location=self.device, weights_only=True))
 
     @torch.no_grad()
     def build_item_embeddings(
