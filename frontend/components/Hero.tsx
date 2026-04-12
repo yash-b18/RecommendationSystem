@@ -120,7 +120,7 @@ export function Hero({ onGetStarted }: HeroProps) {
             <span className="text-brand-blue text-xs font-bold font-mono">R</span>
           </div>
           <span className="font-display font-700 text-sm tracking-wide text-text-primary">
-            RecoIQ
+            DeepReads
           </span>
         </div>
         <div className="hidden md:flex items-center gap-6 text-sm text-text-secondary">
@@ -150,7 +150,7 @@ export function Hero({ onGetStarted }: HeroProps) {
             mounted ? "animate-fade-up" : "opacity-0"
           }`}
         >
-          <span className="gradient-text">RecoIQ</span>
+          <span className="gradient-text">DeepReads</span>
           <br />
           <span className="text-text-primary">Explainable</span>
           <br />

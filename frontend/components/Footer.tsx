@@ -12,7 +12,7 @@ export function Footer() {
               <div className="w-7 h-7 rounded-lg bg-brand-blue/20 border border-brand-blue/40 flex items-center justify-center">
                 <span className="text-brand-blue text-xs font-bold font-mono">R</span>
               </div>
-              <span className="font-display font-700 text-text-primary">RecoIQ</span>
+              <span className="font-display font-700 text-text-primary">DeepReads</span>
             </div>
             <p className="text-text-muted text-sm max-w-xs leading-relaxed">
               Explainable multi-stage e-commerce recommendation system built on

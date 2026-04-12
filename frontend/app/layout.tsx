@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "RecoIQ — Explainable AI Recommendations",
+  title: "DeepReads — Explainable AI Recommendations",
   description:
     "Production-grade explainable multi-stage e-commerce recommendation system using Amazon Reviews.",
 };
