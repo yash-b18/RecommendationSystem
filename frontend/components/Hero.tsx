@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MODEL_CONFIGS } from "@/lib/types";
 
 interface HeroProps {
   onGetStarted: () => void;
@@ -128,7 +127,7 @@ export function Hero({ onGetStarted }: HeroProps) {
             Amazon Reviews 2023
           </span>
           <span className="tag-pill bg-brand-blue/10 border border-brand-blue/30 text-brand-blue">
-            Video Games
+            Books
           </span>
         </div>
       </nav>
@@ -165,24 +164,28 @@ export function Hero({ onGetStarted }: HeroProps) {
             mounted ? "animate-fade-up delay-200" : "opacity-0"
           }`}
         >
-          A multi-stage recommendation system that compares three model tiers —
-          from naive popularity to deep neural networks — with transparent,
-          feature-level explanations for every recommendation.
+          A Two-Tower neural recommender trained on Amazon Books — powered by
+          BPR loss, metadata-grounded explanations, and benchmarked against
+          classical and popularity baselines.
         </p>
 
-        {/* Model pills */}
+        {/* Feature pills */}
         <div
           className={`flex flex-wrap justify-center gap-3 mb-12 ${
             mounted ? "animate-fade-up delay-300" : "opacity-0"
           }`}
         >
-          {MODEL_CONFIGS.map((m) => (
+          {[
+            { label: "Two-Tower Neural Network", color: "text-brand-green", bg: "bg-brand-green/10", border: "border-brand-green/30" },
+            { label: "BPR Loss", color: "text-brand-orange", bg: "bg-brand-orange/10", border: "border-brand-orange/30" },
+            { label: "Explainable Recommendations", color: "text-brand-blue", bg: "bg-brand-blue/10", border: "border-brand-blue/30" },
+          ].map((pill) => (
             <div
-              key={m.id}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-all ${m.bgColor} ${m.borderColor} ${m.color}`}
+              key={pill.label}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium ${pill.bg} ${pill.border} ${pill.color}`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
-              {m.fullName}
+              {pill.label}
             </div>
           ))}
         </div>
@@ -217,7 +220,7 @@ export function Hero({ onGetStarted }: HeroProps) {
           }`}
         >
           {[
-            { value: "3", label: "Model Tiers" },
+            { value: "100K+", label: "Books" },
             { value: "SHAP", label: "Explainability" },
             { value: "NDCG@K", label: "Evaluation Metric" },
           ].map((stat) => (
