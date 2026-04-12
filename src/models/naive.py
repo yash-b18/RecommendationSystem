@@ -72,12 +72,13 @@ class GlobalPopularityRecommender:
         if self.popularity is None:
             raise RuntimeError("Model not fitted. Call .fit() first.")
         seen = self.user_seen.get(user_idx, set())
-        recs = [
-            (int(iid), float(score))
-            for iid, score in self.popularity.items()
-            if iid not in seen
-        ]
-        return recs[:top_k]
+        recs = []
+        for iid, score in self.popularity.items():
+            if iid not in seen:
+                recs.append((int(iid), float(score)))
+                if len(recs) == top_k:
+                    break
+        return recs
 
     def recommend_batch(
         self, user_idxs: list[int], top_k: int = 10

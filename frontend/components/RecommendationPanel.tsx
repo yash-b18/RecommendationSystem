@@ -1,7 +1,6 @@
 "use client";
 
-import type { ModelType, RecommendedItem } from "@/lib/types";
-import { MODEL_CONFIGS } from "@/lib/types";
+import type { RecommendedItem } from "@/lib/types";
 import { ProductCard } from "./ProductCard";
 import { ProductCardSkeleton } from "./LoadingSkeleton";
 
@@ -9,17 +8,13 @@ interface RecommendationPanelProps {
   recommendations: RecommendedItem[] | null;
   loading: boolean;
   error: string | null;
-  modelType: ModelType;
 }
 
 export function RecommendationPanel({
   recommendations,
   loading,
   error,
-  modelType,
 }: RecommendationPanelProps) {
-  const modelCfg = MODEL_CONFIGS.find((m) => m.id === modelType)!;
-
   if (!recommendations && !loading && !error) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -28,7 +23,7 @@ export function RecommendationPanel({
         </div>
         <p className="text-text-secondary text-sm max-w-xs">
           Select a persona and click{" "}
-          <span className="text-brand-blue font-medium">Get Recommendations</span>{" "}
+          <span className="text-brand-green font-medium">Get Recommendations</span>{" "}
           to see personalized results.
         </p>
       </div>
@@ -37,25 +32,17 @@ export function RecommendationPanel({
 
   return (
     <div>
-      {/* Model header */}
+      {/* Header badge */}
       {recommendations && (
-        <div
-          className={`flex items-center gap-3 mb-6 p-4 rounded-xl border ${modelCfg.borderColor} ${modelCfg.bgColor}`}
-        >
-          <div
-            className={`w-2.5 h-2.5 rounded-full ${
-              modelCfg.color.replace("text-", "bg-")
-            } animate-pulse2`}
-          />
+        <div className="flex items-center gap-3 mb-6 p-4 rounded-xl border border-brand-green/30 bg-brand-green/5">
+          <div className="w-2.5 h-2.5 rounded-full bg-brand-purple animate-pulse2 shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
           <div>
-            <span
-              className={`text-sm font-bold ${modelCfg.color} font-display`}
-            >
-              {modelCfg.fullName}
+            <span className="text-sm font-bold text-brand-purple font-display">
+              Top Picks for You
             </span>
-            <span className="text-text-muted text-sm"> · {modelCfg.description}</span>
+            <span className="text-text-muted text-sm"> · Personalized book recommendations</span>
           </div>
-          <span className={`ml-auto tag-pill ${modelCfg.bgColor} ${modelCfg.borderColor} ${modelCfg.color} text-xs font-mono`}>
+          <span className="ml-auto tag-pill bg-brand-purple/10 border-brand-purple/30 text-brand-purple text-xs font-mono">
             {recommendations.length} results
           </span>
         </div>
@@ -79,8 +66,8 @@ export function RecommendationPanel({
               key={item.item_idx}
               item={item}
               rank={i + 1}
-              accentColor={modelCfg.color}
-              accentBg={modelCfg.bgColor}
+              accentColor="text-brand-green"
+              accentBg="bg-brand-green/10"
             />
           ))}
       </div>

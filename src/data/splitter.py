@@ -63,16 +63,17 @@ def split_leave_last_out(
     test_df = positives[test_mask].drop(columns=["_rank"])
     val_df = positives[val_mask].drop(columns=["_rank"])
 
-    # Training = everything not in test or val (identified by user+item pair)
-    test_keys = set(zip(test_df["user_idx"], test_df["item_idx"]))
-    val_keys = set(zip(val_df["user_idx"], val_df["item_idx"]))
-
-    def _not_in_held_out(row: pd.Series) -> bool:
-        k = (row["user_idx"], row["item_idx"])
-        return k not in test_keys and k not in val_keys
-
-    train_mask = interactions.apply(_not_in_held_out, axis=1)
-    train_df = interactions[train_mask].copy()
+    # Training = everything not in test or val — vectorized via tuple key set
+    held_keys = set(
+        zip(test_df["user_idx"], test_df["item_idx"])
+    ) | set(
+        zip(val_df["user_idx"], val_df["item_idx"])
+    )
+    pair_keys = pd.Series(
+        list(zip(interactions["user_idx"], interactions["item_idx"])),
+        index=interactions.index,
+    )
+    train_df = interactions[~pair_keys.isin(held_keys)].copy()
 
     logger.info(
         "Split sizes — train: %d, val: %d, test: %d",
@@ -119,32 +120,34 @@ def sample_negatives(
         .to_dict()
     )
 
-    neg_rows = []
     all_items = np.arange(n_items)
 
-    for _, row in positives.iterrows():
-        uid = int(row["user_idx"])
+    # Vectorized: iterate per-user (not per-row) — O(n_users) instead of O(n_positives)
+    neg_user_idxs: list[np.ndarray] = []
+    neg_item_idxs: list[np.ndarray] = []
+
+    pos_counts = positives.groupby("user_idx").size()
+
+    for uid, n_pos in pos_counts.items():
         seen = user_seen.get(uid, set())
-        candidates = np.setdiff1d(all_items, list(seen))
+        seen_arr = np.fromiter(seen, dtype=np.int64, count=len(seen))
+        candidates = np.setdiff1d(all_items, seen_arr, assume_unique=True)
         if len(candidates) == 0:
             continue
-        sampled = rng.choice(
-            candidates,
-            size=min(n_negatives, len(candidates)),
-            replace=False,
-        )
-        for iid in sampled:
-            neg_rows.append({
-                "user_idx": uid,
-                "item_idx": int(iid),
-                "rating": 0.0,
-                "label": 0,
-                "user_id": row.get("user_id", ""),
-                "item_id": "",
-                "timestamp": row.get("timestamp", 0),
-            })
+        n_sample = min(n_negatives * n_pos, len(candidates))
+        sampled = rng.choice(candidates, size=n_sample, replace=False)
+        neg_user_idxs.append(np.full(n_sample, uid, dtype=np.int64))
+        neg_item_idxs.append(sampled)
 
-    neg_df = pd.DataFrame(neg_rows)
+    neg_df = pd.DataFrame({
+        "user_idx": np.concatenate(neg_user_idxs) if neg_user_idxs else np.array([], dtype=np.int64),
+        "item_idx": np.concatenate(neg_item_idxs) if neg_item_idxs else np.array([], dtype=np.int64),
+        "rating": 0.0,
+        "label": 0,
+        "user_id": "",
+        "item_id": "",
+        "timestamp": 0,
+    })
     result = pd.concat([train_df, neg_df], ignore_index=True)
     logger.info(
         "After negative sampling: %d rows (%d pos, %d neg)",

@@ -217,11 +217,11 @@ def personas() -> list[Persona]:
     eligible = pos_counts[pos_counts >= 5].index.tolist()[:20]
 
     persona_names = [
-        ("Action Gamer", "Loves fast-paced action and shooter games"),
-        ("RPG Enthusiast", "Prefers deep story-driven role-playing games"),
-        ("Sports Fan", "Follows sports simulation franchises"),
-        ("Strategy Thinker", "Enjoys real-time and turn-based strategy"),
-        ("Casual Player", "Plays a mix of genres and indie games"),
+        ("The Avid Reader", "Devours books across multiple genres"),
+        ("Mystery Lover", "Prefers suspense, thrillers, and whodunits"),
+        ("Fiction Explorer", "Enjoys literary fiction and character-driven stories"),
+        ("Non-Fiction Buff", "Loves history, science, and biography"),
+        ("Casual Reader", "Picks up a good book whenever the mood strikes"),
     ]
 
     result = []

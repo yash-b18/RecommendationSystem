@@ -77,10 +77,14 @@ def download_reviews(cfg: DataConfig) -> Path:
         Path to the saved JSONL file.
     """
     hf_path = f"{_HF_BASE}/review_categories/{cfg.category}.jsonl"
-    logger.info("Downloading reviews from %s", hf_path)
 
+    if cfg.raw_reviews_path.exists():
+        logger.info("Reviews already downloaded → %s (skipping)", cfg.raw_reviews_path)
+        return cfg.raw_reviews_path
+
+    logger.info("Downloading reviews from %s", hf_path)
     fs = HfFileSystem(token=_hf_token())
-    max_rows = 200_000 if cfg.debug else None
+    max_rows = 5_000_000 if cfg.debug else None
     n = _stream_jsonl(fs, hf_path, cfg.raw_reviews_path, max_rows)
     logger.info("Saved %d reviews → %s", n, cfg.raw_reviews_path)
     return cfg.raw_reviews_path
@@ -97,10 +101,14 @@ def download_metadata(cfg: DataConfig) -> Path:
         Path to the saved JSONL file.
     """
     hf_path = f"{_HF_BASE}/meta_categories/meta_{cfg.category}.jsonl"
-    logger.info("Downloading metadata from %s", hf_path)
 
+    if cfg.raw_metadata_path.exists():
+        logger.info("Metadata already downloaded → %s (skipping)", cfg.raw_metadata_path)
+        return cfg.raw_metadata_path
+
+    logger.info("Downloading metadata from %s", hf_path)
     fs = HfFileSystem(token=_hf_token())
-    max_rows = 50_000 if cfg.debug else None
+    max_rows = 2_000_000 if cfg.debug else None
     n = _stream_jsonl(fs, hf_path, cfg.raw_metadata_path, max_rows)
     logger.info("Saved %d metadata rows → %s", n, cfg.raw_metadata_path)
     return cfg.raw_metadata_path

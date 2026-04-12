@@ -73,6 +73,14 @@ class InferenceOrchestrator:
     def __init__(self, registry, cfg) -> None:
         self.registry = registry
         self.cfg = cfg
+        # Pre-compute set of item_idxs that have no title — exclude from all recommendations
+        if registry.item_features is not None:
+            df = registry.item_features
+            untitled_mask = df["title"].isna() | (df["title"].astype(str).str.strip() == "") | (df["title"].astype(str) == "nan")
+            self._untitled_items: set[int] = set(df.loc[untitled_mask, "item_idx"].tolist())
+        else:
+            self._untitled_items = set()
+        logger.info("Untitled items excluded from recommendations: %d", len(self._untitled_items))
 
     def recommend_naive(
         self,
@@ -91,10 +99,14 @@ class InferenceOrchestrator:
         uid = user_idx if user_idx is not None else -1
 
         if uid in (reg.naive_model.user_seen or {}):
-            recs = reg.naive_model.recommend(uid, top_k=top_k)
+            recs = reg.naive_model.recommend(uid, top_k=top_k + len(self._untitled_items))
+            recs = [(iid, s) for iid, s in recs if iid not in self._untitled_items][:top_k]
         else:
-            # New user: just return global top-K
-            recs = list(reg.naive_model.popularity.head(top_k).items())
+            # New user: just return global top-K from titled items only
+            pop_titled = reg.naive_model.popularity[
+                ~reg.naive_model.popularity.index.isin(self._untitled_items)
+            ]
+            recs = list(pop_titled.head(top_k).items())
             recs = [(int(iid), float(score)) for iid, score in recs]
 
         items = []
@@ -116,16 +128,18 @@ class InferenceOrchestrator:
         if not reg.classical_available or reg.lgbm_model is None:
             return []
 
-        # Get candidate pool from naive model
+        # Get candidate pool from naive model (titled items only)
         if reg.naive_available and user_idx is not None:
-            candidates = reg.naive_model.recommend(
-                user_idx, top_k=self.cfg.classical.candidate_pool_size
+            raw_candidates = reg.naive_model.recommend(
+                user_idx, top_k=self.cfg.classical.candidate_pool_size + len(self._untitled_items)
             )
+            candidates = [(iid, s) for iid, s in raw_candidates if iid not in self._untitled_items][:self.cfg.classical.candidate_pool_size]
         else:
             pop = reg.naive_model.popularity if reg.naive_available else None
             if pop is None:
                 return []
-            candidates = [(int(iid), float(s)) for iid, s in pop.head(self.cfg.classical.candidate_pool_size).items()]
+            pop_titled = pop[~pop.index.isin(self._untitled_items)]
+            candidates = [(int(iid), float(s)) for iid, s in pop_titled.head(self.cfg.classical.candidate_pool_size).items()]
 
         if not candidates:
             return []
@@ -191,7 +205,7 @@ class InferenceOrchestrator:
             user_idx,
             reg.item_embeddings,
             top_k=top_k,
-            exclude_items=seen,
+            exclude_items=seen | self._untitled_items,
         )
 
         items = []
@@ -224,7 +238,8 @@ class InferenceOrchestrator:
         reg = self.registry
         if not reg.naive_available or reg.naive_model is None or reg.item_features is None:
             return []
-        top_items = list(reg.naive_model.popularity.head(n).index)
+        pop_titled = reg.naive_model.popularity[~reg.naive_model.popularity.index.isin(self._untitled_items)]
+        top_items = list(pop_titled.head(n).index)
         result = []
         for iid in top_items:
             row = reg.item_features[reg.item_features["item_idx"] == iid]

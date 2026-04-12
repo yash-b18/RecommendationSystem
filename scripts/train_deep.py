@@ -31,7 +31,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from src.config import FIGURES_DIR, MODELS_DIR, ensure_dirs, get_config
-from src.data.dataset import InteractionDataset
+from src.data.dataset import BPRDataset
 from src.models.deep import TwoTowerModel, TwoTowerTrainer, build_item_feature_matrix
 from src.utils.logging import get_logger
 from src.utils.seed import set_seed
@@ -72,8 +72,8 @@ def plot_training_curve(history: list[dict], output_path: Path) -> None:
     ax.plot(epochs, train_loss, label="Train loss", linewidth=2, color="#3b82f6")
     ax.plot(epochs, val_loss, label="Val loss", linewidth=2, color="#f97316", linestyle="--")
     ax.set_xlabel("Epoch")
-    ax.set_ylabel("BCE Loss")
-    ax.set_title("Two-Tower Training Curve")
+    ax.set_ylabel("BPR Loss")
+    ax.set_title("Two-Tower Training Curve (BPR)")
     ax.legend()
     plt.tight_layout()
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -111,9 +111,11 @@ def main() -> None:
     n_meta = item_feat_matrix.shape[1]
     logger.info("Item metadata features: %d", n_meta)
 
-    # PyTorch Datasets
-    train_ds = InteractionDataset(train_df, item_feat_matrix)
-    val_ds = InteractionDataset(val_df, item_feat_matrix)
+    # BPR Datasets: pairs each positive with a sampled negative
+    # train_df has pre-sampled negatives (label=0); val_df may only have positives
+    train_ds = BPRDataset(train_df, item_feat_matrix)
+    val_ds = BPRDataset(val_df, item_feat_matrix, n_items=n_items)
+    logger.info("BPR dataset — train pairs: %d, val pairs: %d", len(train_ds), len(val_ds))
 
     train_loader = DataLoader(
         train_ds,
@@ -124,7 +126,7 @@ def main() -> None:
     )
     val_loader = DataLoader(
         val_ds,
-        batch_size=cfg.deep.batch_size * 2,
+        batch_size=cfg.deep.batch_size,
         shuffle=False,
         num_workers=0,
     )

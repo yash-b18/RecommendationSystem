@@ -28,6 +28,7 @@ from typing import Optional
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from src.data.dataset import InferenceDataset, InteractionDataset
@@ -211,24 +212,49 @@ class TwoTowerTrainer:
     ) -> None:
         self.model = model.to(device)
         self.device = device
-        self.optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
-        self.criterion = nn.BCEWithLogitsLoss()
+        # Embedding tables have sparse gradients — weight decay kills infrequently-updated
+        # user/item embeddings. Use two param groups: embeddings get no weight decay.
+        emb_params = [p for n, p in model.named_parameters() if "embedding" in n]
+        mlp_params = [p for n, p in model.named_parameters() if "embedding" not in n]
+        self.optimizer = torch.optim.Adam([
+            {"params": emb_params, "weight_decay": 0.0},
+            {"params": mlp_params, "weight_decay": weight_decay},
+        ], lr=lr)
+        # BPR: no temperature needed (raw dot product used for ranking)
         self.patience = patience
         self.model_path = model_path
         self._best_val_loss = float("inf")
         self._patience_counter = 0
 
     def _step(self, batch: dict[str, torch.Tensor]) -> torch.Tensor:
-        """Run a single forward pass and return loss."""
-        user_idx = batch["user_idx"].to(self.device)
-        item_idx = batch["item_idx"].to(self.device)
-        labels = batch["label"].to(self.device)
-        item_features = batch.get("item_features")
-        if item_features is not None:
-            item_features = item_features.to(self.device)
+        """
+        Bayesian Personalized Ranking (BPR) loss.
 
-        scores = self.model(user_idx, item_idx, item_features)
-        return self.criterion(scores, labels)
+        For each (user, pos_item, neg_item) triple:
+          loss = -log_sigmoid(score(user, pos_item) - score(user, neg_item))
+
+        This directly optimizes for ranking positives above negatives without
+        relying on in-batch diversity, avoiding embedding collapse.
+        """
+        user_idx = batch["user_idx"].to(self.device)
+        pos_item_idx = batch["pos_item_idx"].to(self.device)
+        neg_item_idx = batch["neg_item_idx"].to(self.device)
+        pos_feat = batch.get("pos_item_features")
+        neg_feat = batch.get("neg_item_features")
+        if pos_feat is not None:
+            pos_feat = pos_feat.to(self.device)
+        if neg_feat is not None:
+            neg_feat = neg_feat.to(self.device)
+
+        u_emb = self.model.user_tower(user_idx)                     # (B, D)
+        pos_emb = self.model.item_tower(pos_item_idx, pos_feat)     # (B, D)
+        neg_emb = self.model.item_tower(neg_item_idx, neg_feat)     # (B, D)
+
+        pos_scores = (u_emb * pos_emb).sum(dim=-1)   # (B,)
+        neg_scores = (u_emb * neg_emb).sum(dim=-1)   # (B,)
+
+        loss = -F.logsigmoid(pos_scores - neg_scores).mean()
+        return loss
 
     def train_epoch(self, loader: DataLoader) -> float:
         """Train for one epoch and return mean loss."""
@@ -377,9 +403,9 @@ class TwoTowerTrainer:
         scores = item_embeddings @ user_emb          # (n_items,)
 
         if exclude_items:
-            for iid in exclude_items:
-                if 0 <= iid < len(scores):
-                    scores[iid] = -np.inf
+            excl = np.array([iid for iid in exclude_items if 0 <= iid < len(scores)], dtype=np.int64)
+            if len(excl):
+                scores[excl] = -np.inf
 
         top_indices = np.argpartition(scores, -top_k)[-top_k:]
         top_indices = top_indices[np.argsort(scores[top_indices])[::-1]]
