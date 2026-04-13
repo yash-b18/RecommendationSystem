@@ -39,7 +39,7 @@ class DataConfig:
 
     # Category to use. Smaller categories are faster for development.
     # Options: "Video_Games", "Books", "Electronics", "Clothing_Shoes_and_Jewelry"
-    category: str = "Video_Games"
+    category: str = "Books"
 
     # Minimum number of reviews a user must have to be included
     min_user_reviews: int = 5
@@ -114,7 +114,7 @@ class ClassicalConfig:
     verbose_eval: int = 100
 
     # Top-K candidates to score per user (from naive retrieval)
-    candidate_pool_size: int = 100
+    candidate_pool_size: int = 500
 
     # Model artifact
     model_path: Path = field(default_factory=lambda: MODELS_DIR / "lgbm_model.pkl")
@@ -127,9 +127,11 @@ class DeepConfig:
     """Configuration for the Two-Tower neural recommender."""
 
     # Architecture
+    # hidden_dims=[] → single linear projection (no hidden layers), avoids MLP collapse
+    # on sparse book data. Deep MLPs converge to a constant function with sparse gradients.
     embedding_dim: int = 64
-    hidden_dims: List[int] = field(default_factory=lambda: [256, 128])
-    dropout: float = 0.2
+    hidden_dims: List[int] = field(default_factory=lambda: [])
+    dropout: float = 0.1
     use_metadata: bool = True
     use_text: bool = True
 
@@ -139,11 +141,11 @@ class DeepConfig:
 
     # Training
     batch_size: int = 1024
-    epochs: int = 20
+    epochs: int = 30
     learning_rate: float = 1e-3
-    weight_decay: float = 1e-4
+    weight_decay: float = 1e-5
     num_workers: int = 4
-    patience: int = 5
+    patience: int = 8
     random_seed: int = 42
 
     # Inference
@@ -204,6 +206,8 @@ class APIConfig:
     cors_origins: List[str] = field(default_factory=lambda: [
         "http://localhost:3000",
         "http://localhost:3001",
+        "http://localhost:3002",
+        "http://localhost:3003",
         "https://*.vercel.app",
     ])
 
@@ -238,9 +242,10 @@ def get_config(debug: bool = False, category: Optional[str] = None) -> Config:
     cfg = Config()
     if debug:
         cfg.data.debug = True
-        cfg.deep.epochs = 2
-        cfg.deep.batch_size = 256
-        cfg.classical.n_estimators = 50
+        cfg.data.debug_n_users = 100_000  # high cap — download size already controlled
+        cfg.deep.epochs = 10
+        cfg.deep.batch_size = 1024
+        cfg.classical.n_estimators = 200
     if category:
         cfg.data.category = category
     return cfg

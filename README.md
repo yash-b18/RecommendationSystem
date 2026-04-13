@@ -1,41 +1,39 @@
-# Explainable Multi-Stage E-Commerce Recommendation System
+# DeepReads — Explainable Book Recommendations
 
-> Amazon Reviews 2023 · Video Games · Three-model comparison · SHAP explainability · Next.js demo app
+> Amazon Reviews 2023 · Books · Two-Tower neural model · Metadata-grounded explanations · Next.js demo app
 
 ---
 
 ## Overview
 
-This project builds a production-quality recommendation system on the [Amazon Reviews 2023](https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023) dataset (Video Games category). It implements and rigorously compares three modeling tiers:
+DeepReads is a production-quality recommendation system built on the [Amazon Reviews 2023](https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023) Books dataset. It implements and compares three modeling tiers, with the Two-Tower neural model serving as the primary recommender in the live app.
 
-| Model | Type | Role in Pipeline |
+| Model | Type | Role |
 |---|---|---|
-| Popularity baseline | Naive | Candidate retrieval |
+| Popularity Baseline | Naive | Candidate retrieval / baseline |
 | LightGBM | Classical ML | Feature-based reranker |
-| Two-Tower NN | Deep Learning | End-to-end neural scorer |
+| Two-Tower NN | Deep Learning | Primary recommender (BPR loss) |
 
-### Novelty
-Prior work on this dataset uses simple collaborative filtering or basic matrix factorization. This project contributes:
-- A **multi-stage pipeline** (retrieval → reranking) comparable to production recommenders
-- **Explainable recommendations** via SHAP (classical model) and metadata-grounded natural language (deep model)
-- A **feature ablation experiment** quantifying the marginal value of each feature group
-- A **polished interactive web app** for investor-style demos
+**Dataset stats:** 100K+ books · 80K+ users · 5M+ ratings
+
+### Key Design Decisions
+- **Two-Tower architecture** with BPR (Bayesian Personalized Ranking) loss for learning user/item embeddings
+- **Metadata-grounded language explanations** for the neural model — author match, title keyword overlap, rating tier, and price affinity derived from item metadata (no LLM)
+- **SHAP explanations** for the LightGBM model — feature-level attribution
+- **Untitled item filtering** — 42% of catalog items have no title; all are excluded from every recommendation path at inference time
+- **Cold-start handling** — users without history can pick books manually; their mean item embedding serves as a proxy user vector
 
 ---
 
 ## Dataset
 
-Data is downloaded automatically from HuggingFace during the pipeline.
+Data is downloaded automatically from HuggingFace during the pipeline. **No manual download required.**
 
-**No manual download required.** The `make_dataset.py` script will:
-1. Stream the Video Games review and metadata splits from HuggingFace
-2. Filter, deduplicate, and save to `data/raw/`
-3. Preprocess into `data/processed/`
+```bash
+python main.py --download
+```
 
-If you need a HuggingFace token (for gated datasets), set it in `.env`:
-```
-HF_TOKEN=your_token_here
-```
+This streams the Books review and metadata splits, filters, deduplicates, and saves to `data/raw/` and `data/processed/`.
 
 ---
 
@@ -54,11 +52,10 @@ source venv/bin/activate        # macOS / Linux
 # 3. Install dependencies
 pip install --upgrade pip
 pip install -r requirements.txt
-pip install -e .                # installs src as editable package
+pip install -e .
 
 # 4. Copy environment file
 cp .env.example .env
-# Edit .env if needed
 ```
 
 ---
@@ -91,15 +88,17 @@ python main.py --all --debug
 
 ## Evaluation
 
-After training, evaluation outputs are written to `data/outputs/`:
+After training, outputs are written to `data/outputs/`:
 
 | File | Contents |
 |---|---|
-| `metrics.csv` | Recall@K, NDCG@K, HitRate@K, MRR for all models |
+| `metrics.csv` | Recall@10, NDCG@10, MRR, Hit Rate for all three models |
 | `metrics_table.md` | Markdown table for the report |
 | `figures/` | Comparison plots, feature importance, ablation curves |
 | `experiment/ablation_results.csv` | Feature ablation results |
-| `error_analysis.csv` | 5+ misprediction examples |
+| `error_analysis.csv` | Misprediction examples |
+
+**Evaluation protocol:** Leave-last-out — each user's most recent interaction is held out as the test item.
 
 ---
 
@@ -108,20 +107,20 @@ After training, evaluation outputs are written to `data/outputs/`:
 ### Backend (FastAPI)
 ```bash
 source venv/bin/activate
-uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
+uvicorn src.api.app:app --host 0.0.0.0 --port 8001 --reload
 ```
 
-API docs available at `http://localhost:8000/docs`
+API docs: `http://localhost:8001/docs`
 
 ### Frontend (Next.js)
 ```bash
 cd frontend
 npm install
-cp .env.local.example .env.local
+cp .env.local.example .env.local   # set NEXT_PUBLIC_API_URL=http://localhost:8001
 npm run dev
 ```
 
-App available at `http://localhost:3000`
+App: `http://localhost:3000`
 
 ---
 
@@ -149,26 +148,19 @@ App available at `http://localhost:3000`
 │   ├── features/                  ← feature engineering modules
 │   ├── models/                    ← model implementations
 │   ├── evaluation/                ← metrics & evaluation
-│   ├── explainability/            ← SHAP + language explanations
-│   ├── api/                       ← FastAPI app
+│   ├── explainability/            ← SHAP (classical) + language (deep) explanations
+│   ├── api/                       ← FastAPI app + inference orchestrator
 │   └── utils/                     ← logging, seeding, helpers
 ├── models/                        ← trained model artifacts
 ├── data/
 │   ├── raw/                       ← downloaded data
 │   ├── processed/                 ← features & splits
 │   └── outputs/                   ← metrics, figures, reports
-│       └── figures/
-├── notebooks/                     ← EDA notebooks (not graded)
-├── frontend/                      ← Next.js web app
+├── notebooks/                     ← EDA notebooks
+├── frontend/                      ← Next.js web app (DeepReads)
 └── docs/
-    └── report_outline.md          ← pre-structured report template
+    └── report_outline.md          ← report template
 ```
-
----
-
-## Sample Screenshots
-
-> _(To be added after app deployment)_
 
 ---
 
@@ -176,39 +168,34 @@ App available at `http://localhost:3000`
 
 ### Backend
 ```bash
-# Build and run with uvicorn
-uvicorn src.api.app:app --host 0.0.0.0 --port 8000
+uvicorn src.api.app:app --host 0.0.0.0 --port 8001
 ```
 
-Alternatively, deploy to Railway, Render, or any VM with the following env vars:
-- `API_HOST`
-- `API_PORT`
+Set env vars: `API_HOST`, `API_PORT`. Deployable to Railway, Render, or any VM.
 
 ### Frontend
 ```bash
-cd frontend
-npm run build
+cd frontend && npm run build
 # Deploy to Vercel: vercel --prod
 ```
 
-Set `NEXT_PUBLIC_API_URL` in Vercel environment variables to point to your backend.
+Set `NEXT_PUBLIC_API_URL` in Vercel to point to your backend.
 
 ---
 
 ## Limitations
-- Trained on Video Games reviews only; generalizes to other categories with retraining.
-- Cold-start users (< 5 ratings) receive popularity-based fallback recommendations.
-- Text feature quality depends on product title length.
+- Cold-start users (no history) receive recommendations via mean-pooled item embeddings from their manually selected books.
+- Recall metrics are low due to dataset sparsity (~65 ratings/user on average) and the difficulty of the leave-last-out protocol on a 100K-item catalog.
+- Text feature quality is dependent on product title availability (42% of items have no title and are excluded from recommendations).
 
-## Ethics Considerations
-- Popularity bias: popular items dominate naive baseline; mitigated by reranking.
-- Filter bubbles: addressed by diversity-aware candidate sampling (future work).
-- User privacy: no real user identifiers are stored; only encoded IDs.
-- See `docs/report_outline.md` Section 13 for full ethics statement.
+## Ethics
+- **Popularity bias:** mitigated by reranking with the Two-Tower model
+- **User privacy:** only encoded integer IDs are used; no real user identifiers stored
+- **Transparency:** every recommendation includes a human-readable explanation grounded in observable metadata
 
 ---
 
 ## Attribution
 
-This project was developed for Duke University AIPI 540 (Deep Learning Applications), Spring 2025.
+Developed for Duke University AIPI 540 (Deep Learning Applications), Spring 2025.
 AI tools (Claude Code) were used for code generation assistance; all design decisions, model choices, and experimental design are original.
