@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import type { Persona } from "@/lib/types";
 import { LoadingSkeleton } from "./LoadingSkeleton";
 
-const PERSONA_ICONS = ["🎮", "⚔️", "🏆", "🧠", "🕹️"];
+const PERSONA_ICONS = ["📚", "🔍", "📖", "🧠", "☕"];
 const PERSONA_COLORS = [
   "border-brand-blue/40 hover:border-brand-blue/80",
   "border-brand-green/40 hover:border-brand-green/80",
