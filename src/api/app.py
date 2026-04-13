@@ -154,9 +154,9 @@ def compare(request: CompareRequest) -> CompareResponse:
     orch = state.orchestrator
     return CompareResponse(
         user_idx=request.user_idx,
-        naive=orch.recommend("naive", request.user_idx, request.top_k),
-        classical=orch.recommend("classical", request.user_idx, request.top_k),
-        deep=orch.recommend("deep", request.user_idx, request.top_k),
+        naive=orch.recommend("naive", request.user_idx, request.top_k, liked_items=request.liked_items),
+        classical=orch.recommend("classical", request.user_idx, request.top_k, liked_items=request.liked_items),
+        deep=orch.recommend("deep", request.user_idx, request.top_k, liked_items=request.liked_items),
     )
 
 
