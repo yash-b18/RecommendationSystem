@@ -190,17 +190,43 @@ class InferenceOrchestrator:
         self,
         user_idx: Optional[int],
         top_k: int = 10,
+        liked_items: list[int] | None = None,
     ) -> list[RecommendedItem]:
         """Recommend using the Two-Tower neural model."""
         reg = self.registry
         if not reg.deep_available or reg.deep_trainer is None:
             return []
 
+        seen = reg.user_seen.get(user_idx, set()) if user_idx is not None else set()
+
         if user_idx is None or user_idx >= reg.n_users:
-            # Cold-start: fall back to naive
+            # Cold-start: if liked_items provided, use their mean embedding as proxy user vector
+            if liked_items and reg.item_embeddings is not None:
+                valid = [i for i in liked_items if 0 <= i < len(reg.item_embeddings)]
+                if valid:
+                    proxy = reg.item_embeddings[valid].mean(axis=0)
+                    norm = np.linalg.norm(proxy)
+                    if norm > 0:
+                        proxy = proxy / norm
+                    scores = reg.item_embeddings @ proxy
+                    exclude = set(liked_items) | self._untitled_items
+                    excl_arr = np.array([i for i in exclude if 0 <= i < len(scores)], dtype=np.int64)
+                    if len(excl_arr):
+                        scores[excl_arr] = -np.inf
+                    top_indices = np.argpartition(scores, -top_k)[-top_k:]
+                    top_indices = top_indices[np.argsort(scores[top_indices])[::-1]]
+                    recs = [(int(i), float(scores[i])) for i in top_indices]
+                    items = []
+                    for item_idx, score in recs:
+                        explanation = "Recommended based on the items you selected."
+                        if reg.language_explainer:
+                            # Use a synthetic "user" from liked items for explanation hints
+                            pass
+                        items.append(_build_item_response(item_idx, score, explanation, reg.item_features))
+                    return items
+            # No liked items either — fall back to naive
             return self.recommend_naive(user_idx=None, top_k=top_k)
 
-        seen = reg.user_seen.get(user_idx, set())
         recs = reg.deep_trainer.recommend(
             user_idx,
             reg.item_embeddings,
@@ -222,6 +248,7 @@ class InferenceOrchestrator:
         model: str,
         user_idx: Optional[int],
         top_k: int = 10,
+        liked_items: list[int] | None = None,
     ) -> list[RecommendedItem]:
         """Route recommendation to the specified model."""
         if model == "naive":
@@ -229,7 +256,7 @@ class InferenceOrchestrator:
         elif model == "classical":
             return self.recommend_classical(user_idx, top_k)
         elif model == "deep":
-            return self.recommend_deep(user_idx, top_k)
+            return self.recommend_deep(user_idx, top_k, liked_items=liked_items)
         else:
             raise ValueError(f"Unknown model: {model!r}. Choose from naive, classical, deep.")
 

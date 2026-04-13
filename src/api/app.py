@@ -134,6 +134,7 @@ def recommend(request: RecommendRequest) -> RecommendResponse:
         model=request.model,
         user_idx=request.user_idx,
         top_k=request.top_k,
+        liked_items=request.liked_items,
     )
     return RecommendResponse(
         model_used=request.model,

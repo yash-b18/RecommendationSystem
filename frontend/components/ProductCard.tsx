@@ -89,13 +89,6 @@ export function ProductCard({
           </div>
         </div>
 
-        {/* Score */}
-        <div
-          className={`shrink-0 text-right font-mono text-xs ${accentColor}`}
-        >
-          <div className="font-600">{item.score.toFixed(3)}</div>
-          <div className="text-text-muted text-[10px]">score</div>
-        </div>
       </div>
 
       {/* Score bar */}
