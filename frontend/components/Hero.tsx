@@ -221,7 +221,7 @@ export function Hero({ onGetStarted }: HeroProps) {
         >
           {[
             { value: "100K+", label: "Books" },
-            { value: "SHAP", label: "Explainability" },
+            { value: "BPR", label: "Training Loss" },
             { value: "NDCG@K", label: "Evaluation Metric" },
           ].map((stat) => (
             <div key={stat.label} className="flex flex-col items-center gap-1">
