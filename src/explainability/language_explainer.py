@@ -186,3 +186,76 @@ class LanguageExplainer:
                 reasons.append("it matches your reading patterns based on neural similarity")
 
         return "Recommended because " + "; ".join(reasons) + "."
+
+    def explain_from_items(
+        self,
+        liked_item_idxs: list[int],
+        item_idx: int,
+        score: float,
+    ) -> str:
+        """
+        Generate an explanation when there is no user_idx — derive history
+        signals directly from the provided liked item indices.
+        """
+        # Build ad-hoc history from the liked items
+        liked_authors: list[str] = []
+        liked_titles: list[str] = []
+        liked_prices: list[float] = []
+        for iid in liked_item_idxs:
+            m = self._item_meta.get(iid, {})
+            a = m.get("author")
+            if a:
+                liked_authors.append(a)
+            t = m.get("title")
+            if t:
+                liked_titles.append(str(t))
+            p = m.get("price")
+            if p:
+                liked_prices.append(float(p))
+
+        meta = self._item_meta.get(item_idx, {})
+        item_title = str(meta.get("title") or "this book")
+        item_author = meta.get("author")
+        avg_rating = meta.get("item_avg_rating")
+        num_ratings = meta.get("item_num_ratings")
+        item_price = meta.get("price")
+
+        top_authors = [a for a, _ in Counter(liked_authors).most_common(5)]
+        reasons: list[str] = []
+
+        # Author match
+        if item_author and item_author not in ("nan", "Unknown") and item_author in top_authors:
+            reasons.append(f"you selected a book by {item_author}")
+
+        # Title keyword overlap
+        item_words = _title_keywords(item_title)
+        history_words: set[str] = set()
+        for t in liked_titles:
+            history_words |= _title_keywords(t)
+        shared = item_words & history_words
+        if len(shared) >= 2:
+            sample = sorted(shared, key=len, reverse=True)[:3]
+            reasons.append(f"it shares themes with your picks (\"{', '.join(sample)}\")")
+
+        # Rating / popularity
+        if avg_rating is not None and num_ratings is not None:
+            tier = _rating_tier(float(avg_rating), int(num_ratings))
+            if tier:
+                reasons.append(f"it is {tier}")
+
+        # Price affinity
+        if item_price and liked_prices:
+            avg_price = sum(liked_prices) / len(liked_prices)
+            if abs(item_price - avg_price) <= avg_price * 0.3:
+                reasons.append(f"it fits the price range of your picks (${item_price:.0f})")
+
+        # Fallback
+        if not reasons:
+            if item_author and item_author not in ("nan", "Unknown"):
+                reasons.append(f"written by {item_author}")
+            if avg_rating and num_ratings and int(num_ratings) >= 20:
+                reasons.append(f"rated {float(avg_rating):.1f}★ by {int(num_ratings):,} readers")
+            if not reasons:
+                reasons.append("its embedding is close to your selected books in neural space")
+
+        return "Recommended because " + "; ".join(reasons) + "."

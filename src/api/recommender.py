@@ -218,10 +218,14 @@ class InferenceOrchestrator:
                     recs = [(int(i), float(scores[i])) for i in top_indices]
                     items = []
                     for item_idx, score in recs:
-                        explanation = "Recommended based on the items you selected."
                         if reg.language_explainer:
-                            # Use a synthetic "user" from liked items for explanation hints
-                            pass
+                            explanation = reg.language_explainer.explain_from_items(
+                                liked_item_idxs=valid,
+                                item_idx=item_idx,
+                                score=score,
+                            )
+                        else:
+                            explanation = "Recommended based on the items you selected."
                         items.append(_build_item_response(item_idx, score, explanation, reg.item_features))
                     return items
             # No liked items either — fall back to naive
