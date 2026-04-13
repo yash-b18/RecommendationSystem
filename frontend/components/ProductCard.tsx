@@ -96,7 +96,7 @@ export function ProductCard({
 
       {/* Stats row */}
       <div className="flex items-center gap-3 text-xs text-text-muted font-mono">
-        {item.avg_rating && (
+        {item.avg_rating != null && item.avg_rating > 0 && (
           <span className="flex items-center gap-1">
             <svg
               className="w-3 h-3 text-amber-400"
@@ -108,10 +108,10 @@ export function ProductCard({
             {item.avg_rating.toFixed(1)}
           </span>
         )}
-        {item.num_ratings && (
+        {item.num_ratings != null && item.num_ratings > 0 && (
           <span>{item.num_ratings.toLocaleString()} reviews</span>
         )}
-        {item.price && (
+        {item.price != null && item.price > 0 && (
           <span className="text-brand-green ml-auto">
             ${item.price.toFixed(2)}
           </span>
