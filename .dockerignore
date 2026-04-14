@@ -10,8 +10,10 @@ __pycache__/
 *.pyd
 .Python
 
-# Frontend (served separately via Vercel)
-frontend/
+# Frontend build artifacts (source is needed, built artifacts are not)
+frontend/node_modules/
+frontend/.next/
+frontend/out/
 
 # Raw data (large, not needed at inference)
 data/raw/
