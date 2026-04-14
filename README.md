@@ -1,3 +1,12 @@
+---
+title: DeepReads
+emoji: 📚
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+---
+
 # DeepReads — Explainable Book Recommendations
 
 > Amazon Reviews 2023 · Books · Two-Tower neural model · Metadata-grounded explanations · Next.js demo app
