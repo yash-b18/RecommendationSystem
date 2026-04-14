@@ -21,7 +21,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # --- Node.js dependencies + build ---
 COPY frontend/package.json frontend/package-lock.json* frontend/
-RUN cd frontend && npm ci
+RUN cd frontend && npm install --legacy-peer-deps
 
 COPY frontend/ frontend/
 
