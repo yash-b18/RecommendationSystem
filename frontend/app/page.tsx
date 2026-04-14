@@ -12,8 +12,6 @@ import type { Persona, RecommendedItem } from "@/lib/types";
 import { Footer } from "@/components/Footer";
 import { Hero } from "@/components/Hero";
 import { ItemPicker } from "@/components/ItemPicker";
-import { MetricsTable } from "@/components/MetricsTable";
-import { ModelComparison } from "@/components/ModelComparison";
 import { PersonaSelector } from "@/components/PersonaSelector";
 import { RecommendationPanel } from "@/components/RecommendationPanel";
 
@@ -189,15 +187,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Step 3 — Model Comparison (side-by-side output from all three models) */}
-        <ModelComparison
-          userIdx={userIdx}
-          likedItems={likedItems}
-          hasUser={hasUser}
-        />
-
-        {/* Offline Metrics Dashboard (evaluation results) */}
-        <MetricsTable />
       </div>
 
       <Footer />
