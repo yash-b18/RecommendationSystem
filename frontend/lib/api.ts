@@ -16,8 +16,10 @@ import type {
   RecommendResponse,
 } from "./types";
 
+// If NEXT_PUBLIC_API_URL is set, call the API directly from the browser (two-Space / local dev mode).
+// Otherwise, use "/api" so calls go through Next.js server-side rewrites → internal FastAPI.
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
+  process.env.NEXT_PUBLIC_API_URL ?? "/api";
 
 async function request<T>(
   path: string,
