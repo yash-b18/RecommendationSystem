@@ -86,7 +86,6 @@ app = FastAPI(
 cors_origins = [
     "http://localhost:3000",
     "http://localhost:3001",
-    "https://*.vercel.app",
 ]
 env_origin = os.getenv("FRONTEND_URL")
 if env_origin:
@@ -95,6 +94,8 @@ if env_origin:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
+    # Wildcard for all Vercel preview/production deployments
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -1,0 +1,33 @@
+# Version control
+.git
+.gitignore
+
+# Python virtual env (large, not needed in container)
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Frontend (served separately via Vercel)
+frontend/
+
+# Raw data (large, not needed at inference)
+data/raw/
+
+# Notebooks
+notebooks/
+
+# Docs
+docs/
+
+# Dev artifacts
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# OS files
+.DS_Store
+Thumbs.db
